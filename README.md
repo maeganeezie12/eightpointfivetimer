@@ -5,7 +5,7 @@ Multi-user work-timer check-in system. Each person's laptop automatically posts 
 ## Layout
 
 - Repo root — FastAPI + SQLite server (`main.py`, `db.py`, `config.py`, `provision.py`, `templates/dashboard.html`). See `DEPLOY.md` for deploying to a server via systemd.
-- `client/` — a small background daemon (`checkin_daemon.py`), packaged into a standalone `.exe` (see `client/BUILD.md`) so coworkers don't need Python installed. It auto-starts via a per-user Startup-folder shortcut (`install_startup.ps1`) rather than Windows Task Scheduler, since many company-managed laptops block standard users from registering scheduled tasks. See `client/SETUP.md`.
+- `client/` — a small background daemon (`checkin_daemon.py`) that coworkers `git clone` and run directly with Python. It auto-starts via a per-user Startup-folder shortcut (`install_startup.ps1`) rather than Windows Task Scheduler, since many company-managed laptops block standard users from registering scheduled tasks. See `client/SETUP.md` (and `client/BUILD.md` for the standalone-exe fallback on a machine without Python).
 
 ## Quick start (server)
 

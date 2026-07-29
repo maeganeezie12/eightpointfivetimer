@@ -1,43 +1,63 @@
 # Coworker laptop setup
 
-Per person, once you've provisioned them on the server (`provision.py add "Their Name"` — see the repo root), do this on their laptop. No Python or pip install needed — it's a standalone `.exe`.
+Per person, once you've provisioned them on the server (`provision.py add "Their Name"` — see the repo root), do this on their laptop. They need Python installed (already the case for this team) — everything else comes straight from git, no separate file transfer needed.
 
 This uses a Startup-folder shortcut rather than Windows Task Scheduler, since many company-managed laptops restrict standard users from registering scheduled tasks (`schtasks /create` fails with "Access is denied"). A Startup-folder shortcut lives entirely in the user's own profile and needs no special permissions.
 
-## 1. Copy files
-
-Create `C:\WorkTimer\` and copy in:
-- `checkin_daemon.exe` (built from `checkin_daemon.py` — see `BUILD.md`)
-- `client_config.env.example` — rename to `client_config.env` and fill in their `PASSWORD` (and `SERVER_URL` if different from the default)
-- `install_startup.ps1`
-
-## 2. Register it to start automatically
-
-From a normal PowerShell prompt (no admin rights needed):
+## 1. Get the code and install dependencies
 
 ```powershell
-cd C:\WorkTimer
+git clone https://github.com/maeganeezie12/eightpointfivetimer.git
+cd eightpointfivetimer\client
+pip install -r requirements.txt
+```
+
+## 2. Configure it
+
+Copy `client_config.env.example` to `client_config.env` in the same `client\` folder, and fill in their `PASSWORD` (and `SERVER_URL` if different from the default).
+
+## 3. Register it to start automatically
+
+From a normal PowerShell prompt (no admin rights needed), from inside `client\`:
+
+```powershell
 .\install_startup.ps1
 ```
 
-This creates a shortcut in `shell:startup` pointing at `checkin_daemon.exe`. It'll launch automatically at every logon from now on.
+This creates a shortcut in `shell:startup` that runs `checkin_daemon.py` via `pythonw.exe` (no console window). It'll launch automatically at every logon from now on.
 
-## 3. Start it now (don't wait for the next logon)
+## 4. Start it now (don't wait for the next logon)
 
 ```powershell
-Start-Process "C:\WorkTimer\checkin_daemon.exe"
+Start-Process pythonw.exe -ArgumentList "checkin_daemon.py"
 ```
 
 It then runs continuously in the background: once at startup (covering a fresh logon after a full shutdown), and afterwards it polls every 60 seconds watching for a large gap in elapsed time, which is how it detects the laptop resumed from sleep. Either way, it only actually posts a checkin if the local time is between 08:00 and 11:00 and it hasn't already checked in that day — outside that window, or after the day's checkin is done, it just logs and does nothing.
 
-## 4. Verify
+## 5. Verify
 
-- Check `C:\WorkTimer\checkin_client.log` for a line confirming success, or the reason it skipped.
+- Check `checkin_client.log` (in the `client\` folder) for a line confirming success, or the reason it skipped.
 - Check the dashboard at `http://192.119.82.215:8000/` for their name and a live countdown.
+
+## To update later
+
+```powershell
+cd eightpointfivetimer\client
+git pull
+pip install -r requirements.txt
+```
+The running daemon needs a restart (stop it per below, then start it again) to pick up code changes — it doesn't reload itself.
 
 ## To stop it
 
 ```powershell
-Get-Process checkin_daemon | Stop-Process
+Get-CimInstance Win32_Process -Filter "Name = 'pythonw.exe'" |
+  Where-Object { $_.CommandLine -like "*checkin_daemon.py*" } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 Remove-Item "$([Environment]::GetFolderPath('Startup'))\WorkTimerCheckin.lnk"
 ```
+(Filtering by command line, rather than just the process name, avoids accidentally killing an unrelated `pythonw.exe` process.)
+
+## Building a standalone .exe instead
+
+If a particular machine doesn't have Python, see `BUILD.md` for packaging `checkin_daemon.py` into a standalone `.exe` instead — same behavior, just a different distribution method for that one machine.
