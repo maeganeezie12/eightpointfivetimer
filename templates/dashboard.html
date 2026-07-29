@@ -2,36 +2,238 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Work Timer Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⏳🏢💯 EIGHT.FIVERS</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B3%3C/text%3E%3C/svg%3E">
 <style>
-  body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 2rem; }
-  h1 { font-weight: 600; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-  .card { background: #1c1c1c; border-radius: 10px; padding: 1rem 1.25rem; }
-  .name { font-size: 1rem; opacity: 0.8; }
-  .countdown { font-size: 1.6rem; font-variant-numeric: tabular-nums; margin-top: 0.25rem; }
-  .not-checked-in { color: #888; font-size: 1rem; margin-top: 0.25rem; }
-  .done { color: #4caf50; }
+  :root {
+    color-scheme: light;
+    --page:            #f9f9f7;
+    --surface:         #fcfcfb;
+    --text-primary:    #0b0b0b;
+    --text-secondary:  #52514e;
+    --text-muted:      #898781;
+    --border:          rgba(11,11,11,0.10);
+    --track:           #e1e0d9;
+    --meter:           #2a78d6;
+    --good:            #0ca30c;
+    --danger:          #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:            #0d0d0d;
+      --surface:         #1a1a19;
+      --text-primary:    #ffffff;
+      --text-secondary:  #c3c2b7;
+      --text-muted:      #898781;
+      --border:          rgba(255,255,255,0.10);
+      --track:           #2c2c2a;
+      --meter:           #3987e5;
+      --good:            #0ca30c;
+      --danger:          #e66767;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 2.5rem 2rem 3rem;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    margin: 0 0 0.25rem;
+  }
+  .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin: 0; }
+
+  .edit-toggle {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    cursor: pointer;
+  }
+  .edit-toggle:hover { color: var(--text-primary); }
+
+  .edit-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+  .edit-form {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+  }
+  .edit-form label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    gap: 0.3rem;
+  }
+  .edit-form input,
+  .edit-form select {
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: var(--page);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.55rem;
+  }
+  .edit-form button {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--meter);
+    border: none;
+    border-radius: 6px;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+  }
+  .edit-status { font-size: 0.8rem; color: var(--text-muted); }
+  .edit-status.error { color: var(--danger); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.375rem;
+  }
+  .name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.6rem;
+  }
+
+  .countdown {
+    font-size: 1.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+  .pct {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    margin-top: 0.15rem;
+  }
+
+  .meter-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--track);
+    margin-top: 0.85rem;
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--meter);
+    width: 0%;
+    transition: width 1s linear;
+  }
+  .card.done .meter-fill { background: var(--good); }
+  .card.done .countdown { color: var(--good); }
+
+  .done-label {
+    display: none;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--good);
+  }
+  .card.done .done-label { display: flex; }
+  .card.done .countdown-wrap { display: none; }
+
+  .not-checked-in {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    padding: 0.15rem 0;
+  }
 </style>
 </head>
 <body>
-<h1>Work Timer Dashboard</h1>
+<header>
+  <div>
+    <h1>⏳🏢💯 EIGHT.FIVERS</h1>
+    <p class="subtitle">{{ joke_of_the_day }}</p>
+  </div>
+
+  <div class="edit-panel">
+    <button type="button" class="edit-toggle" id="edit-toggle">Edit my check-in time</button>
+    <form class="edit-form" id="edit-form" hidden>
+      <label>
+        Name
+        <select id="edit-name">
+          <option value="" disabled selected>Choose your name</option>
+          {% for user in users %}
+          <option value="{{ user.name }}">{{ user.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Check-in time today
+        <input type="time" id="edit-time">
+      </label>
+      <button type="submit">Save</button>
+      <span class="edit-status" id="edit-status"></span>
+    </form>
+  </div>
+</header>
+
 <div class="grid">
   {% for user in users %}
-  <div class="card">
+  <div class="card" data-wake-epoch="{{ user.wake_epoch or '' }}" data-target-epoch="{{ user.target_epoch or '' }}">
     <div class="name">{{ user.name }}</div>
     {% if user.target_epoch is none %}
       <div class="not-checked-in">Not checked in yet</div>
     {% else %}
-      <div class="countdown" data-target-epoch="{{ user.target_epoch }}">--:--:--</div>
+      <div class="countdown-wrap">
+        <div class="countdown">--:--:--</div>
+        <div class="pct">-- % done</div>
+      </div>
+      <div class="done-label">&#10003; {{ done_message }}</div>
+      <div class="meter-track"><div class="meter-fill"></div></div>
     {% endif %}
   </div>
   {% endfor %}
 </div>
 
 <script>
-  const doneMessage = {{ done_message | tojson }};
-
   function formatRemaining(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -40,20 +242,87 @@
   }
 
   function tick() {
-    document.querySelectorAll(".countdown[data-target-epoch]").forEach(el => {
-      const targetEpoch = parseInt(el.dataset.targetEpoch, 10);
-      const remaining = targetEpoch - Date.now() / 1000;
+    document.querySelectorAll(".card[data-target-epoch]:not([data-target-epoch=''])").forEach(card => {
+      const wakeEpoch = parseFloat(card.dataset.wakeEpoch);
+      const targetEpoch = parseFloat(card.dataset.targetEpoch);
+      const nowSeconds = Date.now() / 1000;
+      const remaining = targetEpoch - nowSeconds;
+      const totalDuration = targetEpoch - wakeEpoch;
+      const elapsed = nowSeconds - wakeEpoch;
+      const pctDone = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+
+      const fill = card.querySelector(".meter-fill");
+
       if (remaining <= 0) {
-        el.textContent = doneMessage;
-        el.classList.add("done");
-      } else {
-        el.textContent = formatRemaining(remaining);
+        card.classList.add("done");
+        fill.style.width = "100%";
+        return;
       }
+
+      card.querySelector(".countdown").textContent = formatRemaining(remaining);
+      card.querySelector(".pct").textContent = `${pctDone.toFixed(0)}% done`;
+      fill.style.width = `${pctDone}%`;
     });
   }
 
   tick();
   setInterval(tick, 1000);
+
+  // --- Edit my check-in time ---
+  const editToggle = document.getElementById("edit-toggle");
+  const editForm = document.getElementById("edit-form");
+  const nameInput = document.getElementById("edit-name");
+  const timeInput = document.getElementById("edit-time");
+  const statusEl = document.getElementById("edit-status");
+
+  const savedName = localStorage.getItem("worktimer_name");
+  if (savedName) nameInput.value = savedName;
+
+  editToggle.addEventListener("click", () => {
+    editForm.hidden = !editForm.hidden;
+    if (!editForm.hidden && !timeInput.value) {
+      const now = new Date();
+      timeInput.value = now.toTimeString().slice(0, 5);
+    }
+  });
+
+  editForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = nameInput.value;
+    const time = timeInput.value;
+    statusEl.classList.remove("error");
+
+    if (!name || !time) {
+      statusEl.textContent = "Choose your name and a time.";
+      statusEl.classList.add("error");
+      return;
+    }
+    localStorage.setItem("worktimer_name", name);
+
+    const [hh, mm] = time.split(":").map(Number);
+    const wake = new Date();
+    wake.setHours(hh, mm, 0, 0);
+
+    statusEl.textContent = "Saving…";
+    try {
+      const res = await fetch("/checkin/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, wake_time: wake.toISOString() }),
+      });
+      if (res.ok) {
+        statusEl.textContent = "Saved — refreshing…";
+        setTimeout(() => location.reload(), 600);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        statusEl.textContent = err.detail || `Error ${res.status}`;
+        statusEl.classList.add("error");
+      }
+    } catch (err) {
+      statusEl.textContent = "Network error";
+      statusEl.classList.add("error");
+    }
+  });
 </script>
 </body>
 </html>
