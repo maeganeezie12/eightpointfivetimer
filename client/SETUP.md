@@ -8,7 +8,7 @@ This uses a Startup-folder shortcut rather than Windows Task Scheduler, since ma
 
 Create `C:\WorkTimer\` and copy in:
 - `checkin_daemon.exe` (built from `checkin_daemon.py` — see `BUILD.md`)
-- `client_config.env.example` — rename to `client_config.env` and fill in their `AUTH_TOKEN` (and `SERVER_URL` if different from the default)
+- `client_config.env.example` — rename to `client_config.env` and fill in their `PASSWORD` (and `SERVER_URL` if different from the default)
 - `install_startup.ps1`
 
 ## 2. Register it to start automatically

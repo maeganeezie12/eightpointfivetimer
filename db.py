@@ -17,7 +17,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 name            TEXT    NOT NULL,
-                token           TEXT    NOT NULL UNIQUE,
+                password        TEXT    NOT NULL UNIQUE,
                 duration_hours  REAL,
                 created_at      TEXT    NOT NULL
             )
@@ -35,12 +35,17 @@ def init_db():
             )
         """)
 
+        # migrate deployments created before the token->password rename
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "token" in cols and "password" not in cols:
+            conn.execute("ALTER TABLE users RENAME COLUMN token TO password")
 
-def add_user(name: str, token: str, duration_hours: float | None = None):
+
+def add_user(name: str, password: str, duration_hours: float | None = None):
     with _conn() as conn:
         conn.execute(
-            "INSERT INTO users (name, token, duration_hours, created_at) VALUES (?, ?, ?, ?)",
-            (name, token, duration_hours, datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO users (name, password, duration_hours, created_at) VALUES (?, ?, ?, ?)",
+            (name, password, duration_hours, datetime.now(timezone.utc).isoformat()),
         )
 
 
@@ -51,11 +56,17 @@ def list_users():
         ).fetchall()
 
 
-def get_user_by_token(token: str):
+def get_user_by_password(password: str):
     with _conn() as conn:
         return conn.execute(
-            "SELECT id, name, duration_hours FROM users WHERE token = ?", (token,)
+            "SELECT id, name, duration_hours FROM users WHERE password = ?", (password,)
         ).fetchone()
+
+
+def set_password_by_name(name: str, new_password: str) -> bool:
+    with _conn() as conn:
+        cur = conn.execute("UPDATE users SET password = ? WHERE name = ?", (new_password, name))
+    return cur.rowcount > 0
 
 
 def get_user_by_name(name: str):

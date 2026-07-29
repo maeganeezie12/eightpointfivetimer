@@ -15,7 +15,7 @@ BASE_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Pat
 load_dotenv(BASE_DIR / "client_config.env")
 
 SERVER_URL = os.getenv("SERVER_URL", "").rstrip("/")
-AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
+PASSWORD = os.getenv("PASSWORD") or os.getenv("AUTH_TOKEN", "")  # AUTH_TOKEN kept as a fallback for older configs
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "6"))
 RETRY_DELAY_SECONDS = int(os.getenv("RETRY_DELAY_SECONDS", "15"))
 SLEEP_THRESHOLD_SECONDS = int(os.getenv("SLEEP_THRESHOLD_SECONDS", "7200"))  # 2 hours
@@ -39,7 +39,7 @@ def in_checkin_window(now: datetime) -> bool:
 
 def post_checkin(wake_time: datetime) -> bool:
     payload = {"wake_time": wake_time.isoformat()}
-    headers = {"Authorization": f"Bearer {AUTH_TOKEN}"}
+    headers = {"Authorization": f"Bearer {PASSWORD}"}
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -64,8 +64,8 @@ def maybe_checkin(now: datetime, last_checked_in_date) -> object:
     if not in_checkin_window(now):
         log(f"Skipped — outside {WINDOW_START_HOUR:02d}:00-{WINDOW_END_HOUR:02d}:00 window (current hour={now.hour})")
         return last_checked_in_date
-    if not SERVER_URL or not AUTH_TOKEN:
-        log("Skipped — SERVER_URL or AUTH_TOKEN not configured in client_config.env")
+    if not SERVER_URL or not PASSWORD:
+        log("Skipped — SERVER_URL or PASSWORD not configured in client_config.env")
         return last_checked_in_date
 
     if post_checkin(datetime.now(timezone.utc)):

@@ -33,11 +33,11 @@ class CheckinEditRequest(BaseModel):
 def _authenticate(authorization: str):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
-    token = authorization.removeprefix("Bearer ").strip()
+    password = authorization.removeprefix("Bearer ").strip()
 
-    user = db.get_user_by_token(token)
+    user = db.get_user_by_password(password)
     if user is None:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid password")
     return user
 
 

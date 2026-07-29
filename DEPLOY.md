@@ -29,7 +29,7 @@ venv/bin/python provision.py add "Bob Tan"
 venv/bin/python provision.py list
 ```
 
-Copy the printed token into that person's `client_config.env` (see `client/SETUP.md`).
+Copy the printed password into that person's `client_config.env` (see `client/SETUP.md`).
 
 Confirm reachability from another machine on the network:
 

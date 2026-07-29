@@ -189,8 +189,8 @@
     </select>
   </label>
   <label>
-    Your token
-    <input type="password" id="auth-token" autocomplete="off" placeholder="paste your token">
+    Your password
+    <input type="password" id="auth-password" autocomplete="off" placeholder="enter your password">
   </label>
   <button type="submit">View my history</button>
   <span class="auth-status" id="auth-status"></span>
@@ -213,14 +213,14 @@
 <script>
   const authForm = document.getElementById("auth-form");
   const nameSelect = document.getElementById("auth-name");
-  const tokenInput = document.getElementById("auth-token");
+  const passwordInput = document.getElementById("auth-password");
   const statusEl = document.getElementById("auth-status");
   const content = document.getElementById("content");
 
   const savedName = localStorage.getItem("worktimer_name");
   if (savedName) nameSelect.value = savedName;
-  const savedToken = localStorage.getItem("worktimer_token");
-  if (savedToken) tokenInput.value = savedToken;
+  const savedPassword = localStorage.getItem("worktimer_password");
+  if (savedPassword) passwordInput.value = savedPassword;
 
   function hourOfDay(isoString) {
     const d = new Date(isoString);
@@ -339,21 +339,21 @@
   authForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = nameSelect.value;
-    const token = tokenInput.value.trim();
+    const password = passwordInput.value.trim();
     statusEl.classList.remove("error");
 
-    if (!name || !token) {
-      statusEl.textContent = "Choose your name and enter your token.";
+    if (!name || !password) {
+      statusEl.textContent = "Choose your name and enter your password.";
       statusEl.classList.add("error");
       return;
     }
     localStorage.setItem("worktimer_name", name);
-    localStorage.setItem("worktimer_token", token);
+    localStorage.setItem("worktimer_password", password);
 
     statusEl.textContent = "Loading…";
     try {
       const res = await fetch("/api/history", {
-        headers: { "Authorization": `Bearer ${token}` },
+        headers: { "Authorization": `Bearer ${password}` },
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -364,7 +364,7 @@
       }
       const data = await res.json();
       if (data.name !== name) {
-        statusEl.textContent = `That token belongs to ${data.name}, not ${name} — showing ${data.name}'s history.`;
+        statusEl.textContent = `That password belongs to ${data.name}, not ${name} — showing ${data.name}'s history.`;
       } else {
         statusEl.textContent = "";
       }
