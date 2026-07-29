@@ -19,6 +19,14 @@ def cmd_list(args):
         print(f"- {user['name']} (duration_hours={duration}, created_at={user['created_at']})")
 
 
+def cmd_remove(args):
+    removed = db.remove_user_by_name(args.name)
+    if removed:
+        print(f"Removed {removed} user(s) named '{args.name}' and their checkins.")
+    else:
+        print(f"No user named '{args.name}' found.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Manage work_timer_server users")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -30,6 +38,10 @@ def main():
 
     list_parser = sub.add_parser("list", help="List provisioned users")
     list_parser.set_defaults(func=cmd_list)
+
+    remove_parser = sub.add_parser("remove", help="Remove a user (and their checkins) by name")
+    remove_parser.add_argument("name")
+    remove_parser.set_defaults(func=cmd_remove)
 
     args = parser.parse_args()
     args.func(args)

@@ -58,6 +58,16 @@ def get_user_by_token(token: str):
         ).fetchone()
 
 
+def remove_user_by_name(name: str) -> int:
+    """Delete all users matching name (and their checkins). Returns how many users were removed."""
+    with _conn() as conn:
+        ids = [row["id"] for row in conn.execute("SELECT id FROM users WHERE name = ?", (name,)).fetchall()]
+        for user_id in ids:
+            conn.execute("DELETE FROM checkins WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM users WHERE name = ?", (name,))
+    return len(ids)
+
+
 def get_or_create_checkin(user_id: int, wake_time_utc: datetime, checkin_date: str, target_time_utc: datetime):
     with _conn() as conn:
         conn.execute(
