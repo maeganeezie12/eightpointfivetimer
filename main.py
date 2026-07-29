@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 import config
 import db
+from farewells import FAREWELLS
 from jokes import DAD_JOKES
 
 db.init_db()
@@ -105,8 +106,8 @@ def dashboard(request: Request):
         {
             "request": request,
             "users": users,
-            "done_message": config.DASHBOARD_DONE_MESSAGE,
             "joke_of_the_day": joke_of_the_day,
+            "farewells": FAREWELLS,
         },
     )
 

@@ -166,18 +166,34 @@
     transition: width 1s linear;
   }
   .card.done .meter-fill { background: var(--good); }
-  .card.done .countdown { color: var(--good); }
 
-  .done-label {
+  .done-panel {
     display: none;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 1.05rem;
-    font-weight: 600;
+    flex-direction: column;
+    gap: 0.15rem;
     color: var(--good);
   }
-  .card.done .done-label { display: flex; }
+  .card.done .done-panel { display: flex; }
   .card.done .countdown-wrap { display: none; }
+
+  .clocked {
+    font-size: 1.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+  .clocked-caption {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
+  }
+  .farewell {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+  }
 
   .not-checked-in {
     color: var(--text-muted);
@@ -226,7 +242,11 @@
         <div class="countdown">--:--:--</div>
         <div class="pct">-- % done</div>
       </div>
-      <div class="done-label">&#10003; {{ done_message }}</div>
+      <div class="done-panel">
+        <div class="clocked">--:--:--</div>
+        <div class="clocked-caption">&#10003; hours clocked</div>
+        <div class="farewell"></div>
+      </div>
       <div class="meter-track"><div class="meter-fill"></div></div>
     {% endif %}
   </div>
@@ -241,23 +261,33 @@
     return [h, m, s].map(n => String(n).padStart(2, "0")).join(":");
   }
 
+  const FAREWELLS = {{ farewells | tojson }};
+
   function tick() {
     document.querySelectorAll(".card[data-target-epoch]:not([data-target-epoch=''])").forEach(card => {
       const wakeEpoch = parseFloat(card.dataset.wakeEpoch);
       const targetEpoch = parseFloat(card.dataset.targetEpoch);
       const nowSeconds = Date.now() / 1000;
       const remaining = targetEpoch - nowSeconds;
-      const totalDuration = targetEpoch - wakeEpoch;
-      const elapsed = nowSeconds - wakeEpoch;
-      const pctDone = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
-
       const fill = card.querySelector(".meter-fill");
 
       if (remaining <= 0) {
         card.classList.add("done");
         fill.style.width = "100%";
+
+        const clockedSeconds = nowSeconds - wakeEpoch;
+        card.querySelector(".clocked").textContent = formatRemaining(clockedSeconds);
+
+        const farewellEl = card.querySelector(".farewell");
+        if (!farewellEl.textContent) {
+          farewellEl.textContent = FAREWELLS[Math.floor(Math.random() * FAREWELLS.length)];
+        }
         return;
       }
+
+      const totalDuration = targetEpoch - wakeEpoch;
+      const elapsed = nowSeconds - wakeEpoch;
+      const pctDone = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
 
       card.querySelector(".countdown").textContent = formatRemaining(remaining);
       card.querySelector(".pct").textContent = `${pctDone.toFixed(0)}% done`;
