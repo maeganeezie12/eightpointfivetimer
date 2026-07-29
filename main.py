@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -28,6 +29,10 @@ class CheckinRequest(BaseModel):
 class CheckinEditRequest(BaseModel):
     name: str
     wake_time: datetime
+
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str
 
 
 def _authenticate(authorization: str):
@@ -137,6 +142,21 @@ def api_history(authorization: str = Header(default="")):
         })
 
     return {"name": user["name"], "history": history}
+
+
+@app.post("/account/change-password")
+def change_password(body: ChangePasswordRequest, authorization: str = Header(default="")):
+    user = _authenticate(authorization)
+    new_password = body.new_password.strip()
+    if not new_password:
+        raise HTTPException(status_code=400, detail="New password cannot be empty")
+
+    try:
+        db.set_password_by_id(user["id"], new_password)
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="That password is already taken — pick another one")
+
+    return {"status": "updated", "name": user["name"]}
 
 
 @app.get("/health")
