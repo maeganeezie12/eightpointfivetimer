@@ -63,12 +63,6 @@ def get_user_by_password(password: str):
         ).fetchone()
 
 
-def set_password_by_id(user_id: int, new_password: str) -> bool:
-    with _conn() as conn:
-        cur = conn.execute("UPDATE users SET password = ? WHERE id = ?", (new_password, user_id))
-    return cur.rowcount > 0
-
-
 def set_password_by_name(name: str, new_password: str) -> bool:
     with _conn() as conn:
         cur = conn.execute("UPDATE users SET password = ? WHERE name = ?", (new_password, name))

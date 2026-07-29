@@ -208,22 +208,6 @@
     <h2>Raw history</h2>
     <div id="table-wrap"></div>
   </div>
-
-  <div class="panel">
-    <h2>Change my password</h2>
-    <form class="auth-panel" id="change-password-form" style="max-width:none; margin-bottom:0;">
-      <label>
-        New password
-        <input type="password" id="new-password" autocomplete="new-password" placeholder="new password">
-      </label>
-      <label>
-        Confirm new password
-        <input type="password" id="confirm-password" autocomplete="new-password" placeholder="repeat new password">
-      </label>
-      <button type="submit">Update password</button>
-      <span class="auth-status" id="change-password-status"></span>
-    </form>
-  </div>
 </div>
 
 <script>
@@ -232,7 +216,6 @@
   const passwordInput = document.getElementById("auth-password");
   const statusEl = document.getElementById("auth-status");
   const content = document.getElementById("content");
-  let currentPassword = "";
 
   const savedName = localStorage.getItem("worktimer_name");
   if (savedName) nameSelect.value = savedName;
@@ -385,7 +368,6 @@
       } else {
         statusEl.textContent = "";
       }
-      currentPassword = password;
 
       renderStats(data.history);
       renderChart(data.history);
@@ -394,49 +376,6 @@
     } catch (err) {
       statusEl.textContent = "Network error";
       statusEl.classList.add("error");
-    }
-  });
-
-  // --- Change my password ---
-  const changePasswordForm = document.getElementById("change-password-form");
-  const newPasswordInput = document.getElementById("new-password");
-  const confirmPasswordInput = document.getElementById("confirm-password");
-  const changePasswordStatus = document.getElementById("change-password-status");
-
-  changePasswordForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    changePasswordStatus.classList.remove("error");
-    const newPassword = newPasswordInput.value.trim();
-    const confirmPassword = confirmPasswordInput.value.trim();
-
-    if (!newPassword || newPassword !== confirmPassword) {
-      changePasswordStatus.textContent = "Passwords must match and not be empty.";
-      changePasswordStatus.classList.add("error");
-      return;
-    }
-
-    changePasswordStatus.textContent = "Saving…";
-    try {
-      const res = await fetch("/account/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${currentPassword}` },
-        body: JSON.stringify({ new_password: newPassword }),
-      });
-      if (res.ok) {
-        currentPassword = newPassword;
-        passwordInput.value = newPassword;
-        localStorage.setItem("worktimer_password", newPassword);
-        changePasswordStatus.textContent = "Password updated!";
-        newPasswordInput.value = "";
-        confirmPasswordInput.value = "";
-      } else {
-        const err = await res.json().catch(() => ({}));
-        changePasswordStatus.textContent = err.detail || `Error ${res.status}`;
-        changePasswordStatus.classList.add("error");
-      }
-    } catch (err) {
-      changePasswordStatus.textContent = "Network error";
-      changePasswordStatus.classList.add("error");
     }
   });
 </script>

@@ -7,7 +7,7 @@ db.init_db()
 
 
 def generate_password() -> str:
-    return "".join(secrets.choice("0123456789") for _ in range(6))
+    return "".join(secrets.choice("0123456789") for _ in range(4))
 
 
 def cmd_add(args):
@@ -47,7 +47,7 @@ def main():
     add_parser = sub.add_parser("add", help="Add a new user and print their password")
     add_parser.add_argument("name")
     add_parser.add_argument("--duration-hours", type=float, default=None)
-    add_parser.add_argument("--password", default=None, help="Custom password; auto-generates a 6-digit PIN if omitted")
+    add_parser.add_argument("--password", default=None, help="Custom password; auto-generates a 4-digit PIN if omitted")
     add_parser.set_defaults(func=cmd_add)
 
     list_parser = sub.add_parser("list", help="List provisioned users")
@@ -59,7 +59,7 @@ def main():
 
     setpw_parser = sub.add_parser("set-password", help="Change an existing user's password")
     setpw_parser.add_argument("name")
-    setpw_parser.add_argument("password", nargs="?", default=None, help="New password; auto-generates a 6-digit PIN if omitted")
+    setpw_parser.add_argument("password", nargs="?", default=None, help="New password; auto-generates a 4-digit PIN if omitted")
     setpw_parser.set_defaults(func=cmd_set_password)
 
     args = parser.parse_args()
