@@ -119,6 +119,20 @@ def upsert_checkin(user_id: int, checkin_date: str, wake_time_utc: datetime, tar
         )
 
 
+def get_checkin_history(user_id: int, limit: int = 90):
+    with _conn() as conn:
+        return conn.execute(
+            """
+            SELECT checkin_date, wake_time, target_time
+            FROM checkins
+            WHERE user_id = ?
+            ORDER BY checkin_date DESC
+            LIMIT ?
+            """,
+            (user_id, limit),
+        ).fetchall()
+
+
 def get_today_checkins_for_dashboard(checkin_date: str):
     with _conn() as conn:
         return conn.execute(

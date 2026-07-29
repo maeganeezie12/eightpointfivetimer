@@ -112,6 +112,33 @@ def dashboard(request: Request):
     )
 
 
+@app.get("/history", response_class=HTMLResponse)
+def history_page(request: Request):
+    all_names = [user["name"] for user in db.list_users()]
+    return templates.TemplateResponse(
+        "history.html",
+        {"request": request, "all_names": all_names},
+    )
+
+
+@app.get("/api/history")
+def api_history(authorization: str = Header(default="")):
+    user = _authenticate(authorization)
+    rows = db.get_checkin_history(user["id"])
+
+    history = []
+    for row in rows:
+        wake_dt = datetime.fromisoformat(row["wake_time"]).astimezone(LOCAL_TZ)
+        target_dt = datetime.fromisoformat(row["target_time"]).astimezone(LOCAL_TZ)
+        history.append({
+            "date": row["checkin_date"],
+            "wake_time": wake_dt.isoformat(),
+            "target_time": target_dt.isoformat(),
+        })
+
+    return {"name": user["name"], "history": history}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⏳ My Past Check-ins — EIGHT.FIVERS</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B3%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light;
+    --page:            #f9f9f7;
+    --surface:         #fcfcfb;
+    --text-primary:    #0b0b0b;
+    --text-secondary:  #52514e;
+    --text-muted:      #898781;
+    --border:          rgba(11,11,11,0.10);
+    --gridline:        #e1e0d9;
+    --track:           #e1e0d9;
+    --meter:           #2a78d6;
+    --band:            rgba(42,120,214,0.08);
+    --good:            #0ca30c;
+    --danger:          #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:            #0d0d0d;
+      --surface:         #1a1a19;
+      --text-primary:    #ffffff;
+      --text-secondary:  #c3c2b7;
+      --text-muted:      #898781;
+      --border:          rgba(255,255,255,0.10);
+      --gridline:        #2c2c2a;
+      --track:           #2c2c2a;
+      --meter:           #3987e5;
+      --band:            rgba(57,135,229,0.12);
+      --good:            #0ca30c;
+      --danger:          #e66767;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 2.5rem 2rem 3rem;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.01em; margin: 0 0 0.25rem; }
+  .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin: 0; }
+  .back-link {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    text-decoration: none;
+    height: fit-content;
+  }
+  .back-link:hover { color: var(--text-primary); }
+
+  .auth-panel {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 2rem;
+    max-width: fit-content;
+  }
+  .auth-panel label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    gap: 0.3rem;
+  }
+  .auth-panel input,
+  .auth-panel select {
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: var(--page);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.55rem;
+  }
+  .auth-panel button {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--meter);
+    border: none;
+    border-radius: 6px;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+  }
+  .auth-status { font-size: 0.8rem; color: var(--text-muted); }
+  .auth-status.error { color: var(--danger); }
+
+  #content { display: none; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .stat-tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+  .stat-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+  }
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.375rem;
+    margin-bottom: 1.5rem;
+  }
+  .panel h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0 0 1rem;
+  }
+  .chart-wrap { overflow-x: auto; }
+  svg text { fill: var(--text-muted); font-size: 11px; font-family: inherit; }
+  .chart-line { fill: none; stroke: var(--meter); stroke-width: 2; }
+  .chart-dot { fill: var(--meter); }
+  .chart-band { fill: var(--band); }
+  .chart-grid { stroke: var(--gridline); stroke-width: 1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td { font-variant-numeric: tabular-nums; }
+
+  .empty-state { color: var(--text-muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>⏳ My Past Check-ins</h1>
+    <p class="subtitle">Your own check-in history — nobody else's</p>
+  </div>
+  <a href="/" class="back-link">&larr; Back to dashboard</a>
+</header>
+
+<form class="auth-panel" id="auth-form">
+  <label>
+    Name
+    <select id="auth-name">
+      <option value="" disabled selected>Choose your name</option>
+      {% for name in all_names %}
+      <option value="{{ name }}">{{ name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    Your token
+    <input type="password" id="auth-token" autocomplete="off" placeholder="paste your token">
+  </label>
+  <button type="submit">View my history</button>
+  <span class="auth-status" id="auth-status"></span>
+</form>
+
+<div id="content">
+  <div class="stat-row" id="stat-row"></div>
+
+  <div class="panel">
+    <h2>Check-in time over the last <span id="chart-count">0</span> days</h2>
+    <div class="chart-wrap" id="chart-wrap"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Raw history</h2>
+    <div id="table-wrap"></div>
+  </div>
+</div>
+
+<script>
+  const authForm = document.getElementById("auth-form");
+  const nameSelect = document.getElementById("auth-name");
+  const tokenInput = document.getElementById("auth-token");
+  const statusEl = document.getElementById("auth-status");
+  const content = document.getElementById("content");
+
+  const savedName = localStorage.getItem("worktimer_name");
+  if (savedName) nameSelect.value = savedName;
+  const savedToken = localStorage.getItem("worktimer_token");
+  if (savedToken) tokenInput.value = savedToken;
+
+  function hourOfDay(isoString) {
+    const d = new Date(isoString);
+    return d.getHours() + d.getMinutes() / 60;
+  }
+
+  function formatHM(isoString) {
+    const d = new Date(isoString);
+    return d.toTimeString().slice(0, 5);
+  }
+
+  function formatHourValue(hourValue) {
+    const h = Math.floor(hourValue);
+    const m = Math.round((hourValue - h) * 60);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+
+  function renderStats(history) {
+    const row = document.getElementById("stat-row");
+    if (history.length === 0) {
+      row.innerHTML = '<div class="empty-state">No check-ins recorded yet.</div>';
+      return;
+    }
+    const hours = history.map(h => hourOfDay(h.wake_time));
+    const avg = hours.reduce((a, b) => a + b, 0) / hours.length;
+    const earliest = Math.min(...hours);
+    const latest = Math.max(...hours);
+
+    row.innerHTML = `
+      <div class="stat-tile"><div class="stat-label">Total check-ins</div><div class="stat-value">${history.length}</div></div>
+      <div class="stat-tile"><div class="stat-label">Average check-in</div><div class="stat-value">${formatHourValue(avg)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Earliest</div><div class="stat-value">${formatHourValue(earliest)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Latest</div><div class="stat-value">${formatHourValue(latest)}</div></div>
+    `;
+  }
+
+  function renderChart(history) {
+    document.getElementById("chart-count").textContent = history.length;
+    const wrap = document.getElementById("chart-wrap");
+    if (history.length === 0) {
+      wrap.innerHTML = '<div class="empty-state">Nothing to chart yet.</div>';
+      return;
+    }
+
+    const chrono = [...history].reverse(); // oldest -> newest
+    const width = Math.max(500, chrono.length * 28);
+    const height = 220;
+    const padL = 40, padR = 16, padT = 12, padB = 28;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+
+    const yMin = 7, yMax = 12; // hour range shown (window is 8-11, with padding)
+    const yToPx = (hour) => padT + (yMax - hour) / (yMax - yMin) * plotH;
+    const xToPx = (i) => chrono.length === 1 ? padL + plotW / 2 : padL + (i / (chrono.length - 1)) * plotW;
+
+    const bandTop = yToPx(11);
+    const bandBottom = yToPx(8);
+
+    let gridLines = "";
+    for (let hr = yMin; hr <= yMax; hr++) {
+      const y = yToPx(hr);
+      gridLines += `<line class="chart-grid" x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" />`;
+      gridLines += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end">${hr}:00</text>`;
+    }
+
+    const points = chrono.map((h, i) => [xToPx(i), yToPx(hourOfDay(h.wake_time))]);
+    const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ");
+
+    let dots = "";
+    chrono.forEach((h, i) => {
+      const [x, y] = points[i];
+      dots += `<circle class="chart-dot" cx="${x}" cy="${y}" r="4"><title>${h.date} — ${formatHM(h.wake_time)}</title></circle>`;
+    });
+
+    // sparse x-axis date labels to avoid clutter
+    const labelEvery = Math.max(1, Math.ceil(chrono.length / 8));
+    let xLabels = "";
+    chrono.forEach((h, i) => {
+      if (i % labelEvery === 0 || i === chrono.length - 1) {
+        xLabels += `<text x="${xToPx(i)}" y="${height - 8}" text-anchor="middle">${h.date.slice(5)}</text>`;
+      }
+    });
+
+    wrap.innerHTML = `
+      <svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+        <rect class="chart-band" x="${padL}" y="${bandTop}" width="${plotW}" height="${bandBottom - bandTop}" />
+        ${gridLines}
+        <path class="chart-line" d="${linePath}" />
+        ${dots}
+        ${xLabels}
+      </svg>
+    `;
+  }
+
+  function renderTable(history) {
+    const wrap = document.getElementById("table-wrap");
+    if (history.length === 0) {
+      wrap.innerHTML = '<div class="empty-state">No check-ins recorded yet.</div>';
+      return;
+    }
+    const rows = history.map(h => `
+      <tr>
+        <td>${h.date}</td>
+        <td>${formatHM(h.wake_time)}</td>
+        <td>${formatHM(h.target_time)}</td>
+      </tr>
+    `).join("");
+    wrap.innerHTML = `
+      <table>
+        <thead><tr><th>Date</th><th>Checked in</th><th>Expected out</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  authForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = nameSelect.value;
+    const token = tokenInput.value.trim();
+    statusEl.classList.remove("error");
+
+    if (!name || !token) {
+      statusEl.textContent = "Choose your name and enter your token.";
+      statusEl.classList.add("error");
+      return;
+    }
+    localStorage.setItem("worktimer_name", name);
+    localStorage.setItem("worktimer_token", token);
+
+    statusEl.textContent = "Loading…";
+    try {
+      const res = await fetch("/api/history", {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        statusEl.textContent = err.detail || `Error ${res.status}`;
+        statusEl.classList.add("error");
+        content.style.display = "none";
+        return;
+      }
+      const data = await res.json();
+      if (data.name !== name) {
+        statusEl.textContent = `That token belongs to ${data.name}, not ${name} — showing ${data.name}'s history.`;
+      } else {
+        statusEl.textContent = "";
+      }
+
+      renderStats(data.history);
+      renderChart(data.history);
+      renderTable(data.history);
+      content.style.display = "block";
+    } catch (err) {
+      statusEl.textContent = "Network error";
+      statusEl.classList.add("error");
+    }
+  });
+</script>
+</body>
+</html>

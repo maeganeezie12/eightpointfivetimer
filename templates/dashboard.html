@@ -210,7 +210,10 @@
   </div>
 
   <div class="edit-panel">
-    <button type="button" class="edit-toggle" id="edit-toggle">Edit my check-in time</button>
+    <div style="display:flex; gap:0.5rem;">
+      <a href="/history" class="edit-toggle" style="text-decoration:none;">My past check-ins</a>
+      <button type="button" class="edit-toggle" id="edit-toggle">Edit my check-in time</button>
+    </div>
     <form class="edit-form" id="edit-form" hidden>
       <label>
         Name
