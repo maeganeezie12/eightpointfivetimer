@@ -1,11 +1,10 @@
 # Deploying to the Ubuntu server (192.119.82.215)
 
 ```
-sudo mkdir -p /opt/work_timer_server
-sudo chown $USER:$USER /opt/work_timer_server
-# copy this folder's contents to /opt/work_timer_server (scp, rsync, or git)
+sudo git clone https://github.com/maeganeezie12/eightpointfivetimer.git /opt/eightpointfivetimer
+sudo chown -R $USER:$USER /opt/eightpointfivetimer
+cd /opt/eightpointfivetimer
 
-cd /opt/work_timer_server
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 
@@ -23,17 +22,26 @@ sudo ufw allow 8000
 curl http://localhost:8000/health
 ```
 
-Provision users (run inside the venv, from `/opt/work_timer_server`):
+Provision users (run inside the venv, from `/opt/eightpointfivetimer`):
 
 ```
 venv/bin/python provision.py add "Bob Tan"
 venv/bin/python provision.py list
 ```
 
-Copy the printed token into that person's `client_config.env` (see `maeg_apps/work_timer/client/SETUP.md`).
+Copy the printed token into that person's `client_config.env` (see `client/SETUP.md`).
 
 Confirm reachability from another machine on the network:
 
 ```
 curl http://192.119.82.215:8000/health
+```
+
+## Updating after a future `git push`
+
+```
+cd /opt/eightpointfivetimer
+git pull
+venv/bin/pip install -r requirements.txt
+sudo systemctl restart work_timer.service
 ```
