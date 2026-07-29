@@ -1,0 +1,6 @@
+.env
+work_timer.db
+*.log
+__pycache__/
+*.pyc
+venv/

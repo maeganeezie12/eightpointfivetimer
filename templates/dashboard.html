@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Work Timer Dashboard</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 2rem; }
+  h1 { font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .card { background: #1c1c1c; border-radius: 10px; padding: 1rem 1.25rem; }
+  .name { font-size: 1rem; opacity: 0.8; }
+  .countdown { font-size: 1.6rem; font-variant-numeric: tabular-nums; margin-top: 0.25rem; }
+  .not-checked-in { color: #888; font-size: 1rem; margin-top: 0.25rem; }
+  .done { color: #4caf50; }
+</style>
+</head>
+<body>
+<h1>Work Timer Dashboard</h1>
+<div class="grid">
+  {% for user in users %}
+  <div class="card">
+    <div class="name">{{ user.name }}</div>
+    {% if user.target_epoch is none %}
+      <div class="not-checked-in">Not checked in yet</div>
+    {% else %}
+      <div class="countdown" data-target-epoch="{{ user.target_epoch }}">--:--:--</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  const doneMessage = {{ done_message | tojson }};
+
+  function formatRemaining(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return [h, m, s].map(n => String(n).padStart(2, "0")).join(":");
+  }
+
+  function tick() {
+    document.querySelectorAll(".countdown[data-target-epoch]").forEach(el => {
+      const targetEpoch = parseInt(el.dataset.targetEpoch, 10);
+      const remaining = targetEpoch - Date.now() / 1000;
+      if (remaining <= 0) {
+        el.textContent = doneMessage;
+        el.classList.add("done");
+      } else {
+        el.textContent = formatRemaining(remaining);
+      }
+    });
+  }
+
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>

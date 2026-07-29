@@ -1,0 +1,4 @@
+client_config.env
+checkin_client.log
+__pycache__/
+*.pyc

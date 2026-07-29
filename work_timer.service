@@ -1,0 +1,13 @@
+[Unit]
+Description=Work Timer Check-in Server
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/work_timer_server
+ExecStart=/opt/work_timer_server/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/work_timer_server/.env
+
+[Install]
+WantedBy=multi-user.target

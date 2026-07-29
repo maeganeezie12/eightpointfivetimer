@@ -1,0 +1,94 @@
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+
+DB_PATH = Path(__file__).parent / "work_timer.db"
+
+
+def _conn():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    with _conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                name            TEXT    NOT NULL,
+                token           TEXT    NOT NULL UNIQUE,
+                duration_hours  REAL,
+                created_at      TEXT    NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS checkins (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id       INTEGER NOT NULL,
+                checkin_date  TEXT    NOT NULL,
+                wake_time     TEXT    NOT NULL,
+                target_time   TEXT    NOT NULL,
+                created_at    TEXT    NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, checkin_date)
+            )
+        """)
+
+
+def add_user(name: str, token: str, duration_hours: float | None = None):
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO users (name, token, duration_hours, created_at) VALUES (?, ?, ?, ?)",
+            (name, token, duration_hours, datetime.now(timezone.utc).isoformat()),
+        )
+
+
+def list_users():
+    with _conn() as conn:
+        return conn.execute(
+            "SELECT id, name, duration_hours, created_at FROM users ORDER BY created_at"
+        ).fetchall()
+
+
+def get_user_by_token(token: str):
+    with _conn() as conn:
+        return conn.execute(
+            "SELECT id, name, duration_hours FROM users WHERE token = ?", (token,)
+        ).fetchone()
+
+
+def get_or_create_checkin(user_id: int, wake_time_utc: datetime, checkin_date: str, target_time_utc: datetime):
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO checkins (user_id, checkin_date, wake_time, target_time, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                checkin_date,
+                wake_time_utc.isoformat(),
+                target_time_utc.isoformat(),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        row = conn.execute(
+            "SELECT wake_time, target_time FROM checkins WHERE user_id = ? AND checkin_date = ?",
+            (user_id, checkin_date),
+        ).fetchone()
+    created = row["wake_time"] == wake_time_utc.isoformat()
+    return row, created
+
+
+def get_today_checkins_for_dashboard(checkin_date: str):
+    with _conn() as conn:
+        return conn.execute(
+            """
+            SELECT u.id, u.name, c.wake_time, c.target_time
+            FROM users u
+            LEFT JOIN checkins c ON c.user_id = u.id AND c.checkin_date = ?
+            ORDER BY u.name
+            """,
+            (checkin_date,),
+        ).fetchall()
