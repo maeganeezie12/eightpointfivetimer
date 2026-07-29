@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['checkin_client.py'],
+    ['checkin_daemon.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='checkin_client',
+    name='checkin_daemon',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

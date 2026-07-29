@@ -2,34 +2,42 @@
 
 Per person, once you've provisioned them on the server (`provision.py add "Their Name"` — see the repo root), do this on their laptop. No Python or pip install needed — it's a standalone `.exe`.
 
+This uses a Startup-folder shortcut rather than Windows Task Scheduler, since many company-managed laptops restrict standard users from registering scheduled tasks (`schtasks /create` fails with "Access is denied"). A Startup-folder shortcut lives entirely in the user's own profile and needs no special permissions.
+
 ## 1. Copy files
 
 Create `C:\WorkTimer\` and copy in:
-- `checkin_client.exe` (built from `checkin_client.py` — see `BUILD.md`)
+- `checkin_daemon.exe` (built from `checkin_daemon.py` — see `BUILD.md`)
 - `client_config.env.example` — rename to `client_config.env` and fill in their `AUTH_TOKEN` (and `SERVER_URL` if different from the default)
-- `WorkTimerCheckin.xml`
+- `install_startup.ps1`
 
-## 2. Register the scheduled task
+## 2. Register it to start automatically
 
-From a normal PowerShell/cmd prompt (no admin rights needed for a per-user task):
+From a normal PowerShell prompt (no admin rights needed):
 
+```powershell
+cd C:\WorkTimer
+.\install_startup.ps1
 ```
-schtasks /create /tn "WorkTimerCheckin" /xml "C:\WorkTimer\WorkTimerCheckin.xml"
+
+This creates a shortcut in `shell:startup` pointing at `checkin_daemon.exe`. It'll launch automatically at every logon from now on.
+
+## 3. Start it now (don't wait for the next logon)
+
+```powershell
+Start-Process "C:\WorkTimer\checkin_daemon.exe"
 ```
 
-This registers two triggers that both run `checkin_client.exe`:
-- **On an event** — fires when Windows logs a "resumed from sleep" event (System log, source `Microsoft-Windows-Power-Troubleshooter`, Event ID 1).
-- **At log on** — covers a full shutdown overnight, where no wake event exists.
+It then runs continuously in the background: once at startup (covering a fresh logon after a full shutdown), and afterwards it polls every 60 seconds watching for a large gap in elapsed time, which is how it detects the laptop resumed from sleep. Either way, it only actually posts a checkin if the local time is between 08:00 and 11:00 and it hasn't already checked in that day — outside that window, or after the day's checkin is done, it just logs and does nothing.
 
-The exe itself only actually posts a checkin if the local time is between 08:00 and 11:00 — outside that window it just logs "skipped" and exits, so it's safe for the task to fire more than once a day (e.g. sleep/wake during lunch).
+## 4. Verify
 
-## 3. Verify
-
-- Check `C:\WorkTimer\checkin_client.log` after a wake/logon event for a line confirming success or the reason it skipped.
+- Check `C:\WorkTimer\checkin_client.log` for a line confirming success, or the reason it skipped.
 - Check the dashboard at `http://192.119.82.215:8000/` for their name and a live countdown.
 
-## To remove
+## To stop it
 
-```
-schtasks /delete /tn "WorkTimerCheckin" /f
+```powershell
+Get-Process checkin_daemon | Stop-Process
+Remove-Item "$([Environment]::GetFolderPath('Startup'))\WorkTimerCheckin.lnk"
 ```
