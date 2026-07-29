@@ -1,3 +1,4 @@
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -6,14 +7,19 @@ import requests
 from dotenv import load_dotenv
 import os
 
-load_dotenv(Path(__file__).parent / "client_config.env")
+# When frozen by PyInstaller, __file__ points into a temp extraction dir, not
+# where the .exe actually lives — use sys.executable's folder instead so the
+# config/log files stay next to the installed .exe.
+BASE_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+
+load_dotenv(BASE_DIR / "client_config.env")
 
 SERVER_URL = os.getenv("SERVER_URL", "").rstrip("/")
 AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "6"))
 RETRY_DELAY_SECONDS = int(os.getenv("RETRY_DELAY_SECONDS", "15"))
 
-LOG_PATH = Path(__file__).parent / "checkin_client.log"
+LOG_PATH = BASE_DIR / "checkin_client.log"
 
 WINDOW_START_HOUR = 8
 WINDOW_END_HOUR = 11

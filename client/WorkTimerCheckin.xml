@@ -31,8 +31,7 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>python.exe</Command>
-      <Arguments>checkin_client.py</Arguments>
+      <Command>C:\WorkTimer\checkin_client.exe</Command>
       <WorkingDirectory>C:\WorkTimer</WorkingDirectory>
     </Exec>
   </Actions>
