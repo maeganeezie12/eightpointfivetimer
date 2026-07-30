@@ -7,6 +7,7 @@ from pathlib import Path
 
 import keyboard
 import requests
+import win32api
 from dotenv import load_dotenv
 
 # When frozen by PyInstaller, __file__ points into a temp extraction dir, not
@@ -35,10 +36,18 @@ def log(message: str):
         f.write(f"[{timestamp}] {message}\n")
 
 
-# --- Keyboard-only idle tracking ---
-# Deliberately keyboard, not mouse: a mouse can get bumped by someone else
-# walking past, but a key press is a much stronger signal that the laptop's
-# actual owner is back at their desk.
+# --- Idle tracking ---
+# Primary signal is keyboard-only, not mouse: a mouse can get bumped by
+# someone else walking past a desk, but a key press is a much stronger
+# signal that the laptop's actual owner is back. It's installed via a
+# low-level keyboard hook (the `keyboard` package), which some corporate
+# endpoint security software may flag or block — the same category of
+# restriction that blocked Task Scheduler earlier. Rather than trying to
+# detect that failure directly (a silently-filtered hook raises no error —
+# it just never fires), a second signal runs alongside it at all times:
+# Windows' own combined keyboard+mouse idle-time API. Whichever signal
+# shows the most recent activity wins, so a blocked/filtered keyboard hook
+# degrades to mouse+keyboard detection instead of failing outright.
 _last_keyboard_time = time.monotonic()
 _keyboard_lock = threading.Lock()
 
@@ -52,6 +61,19 @@ def _on_key_event(_event):
 def get_keyboard_idle_seconds() -> float:
     with _keyboard_lock:
         return time.monotonic() - _last_keyboard_time
+
+
+def get_input_idle_seconds() -> float:
+    """Seconds since the last keyboard OR mouse input, per Windows' own
+    system-wide idle-time API — the fallback signal."""
+    last_input_tick = win32api.GetLastInputInfo()
+    current_tick = win32api.GetTickCount()
+    return (current_tick - last_input_tick) / 1000.0
+
+
+def get_idle_seconds() -> float:
+    """The freshest of the two signals — whichever detected activity most recently."""
+    return min(get_keyboard_idle_seconds(), get_input_idle_seconds())
 
 
 def in_checkin_window(now: datetime) -> bool:
@@ -98,7 +120,11 @@ def main():
     log("checkin_daemon started")
     last_checked_in_date = None
 
-    keyboard.on_press(_on_key_event)
+    try:
+        keyboard.on_press(_on_key_event)
+        log("Keyboard hook installed (primary idle signal is keyboard-only)")
+    except Exception as e:
+        log(f"Keyboard hook failed to install ({e}) — relying on the mouse+keyboard idle fallback only")
 
     # Startup check — covers a fresh logon after a full shutdown, where
     # there's no prior idle stretch to have detected a return from.
@@ -107,12 +133,12 @@ def main():
     was_idle_long = False
     while True:
         time.sleep(POLL_INTERVAL_SECONDS)
-        idle_seconds = get_keyboard_idle_seconds()
+        idle_seconds = get_idle_seconds()
 
         if idle_seconds >= IDLE_THRESHOLD_SECONDS:
             was_idle_long = True
         elif was_idle_long and idle_seconds < POLL_INTERVAL_SECONDS:
-            log(f"Detected first keyboard touch after {IDLE_THRESHOLD_SECONDS}s+ idle")
+            log(f"Detected return from idle after {IDLE_THRESHOLD_SECONDS}s+")
             was_idle_long = False
             last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
 
