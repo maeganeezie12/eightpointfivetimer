@@ -1,9 +1,11 @@
 import os
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import keyboard
 import requests
 from dotenv import load_dotenv
 
@@ -18,7 +20,7 @@ SERVER_URL = os.getenv("SERVER_URL", "").rstrip("/")
 PASSWORD = os.getenv("PASSWORD") or os.getenv("AUTH_TOKEN", "")  # AUTH_TOKEN kept as a fallback for older configs
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "6"))
 RETRY_DELAY_SECONDS = int(os.getenv("RETRY_DELAY_SECONDS", "15"))
-SLEEP_THRESHOLD_SECONDS = int(os.getenv("SLEEP_THRESHOLD_SECONDS", "7200"))  # 2 hours
+IDLE_THRESHOLD_SECONDS = int(os.getenv("IDLE_THRESHOLD_SECONDS", "7200"))  # 2 hours
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "60"))
 
 LOG_PATH = BASE_DIR / "checkin_client.log"
@@ -31,6 +33,25 @@ def log(message: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_PATH, "a") as f:
         f.write(f"[{timestamp}] {message}\n")
+
+
+# --- Keyboard-only idle tracking ---
+# Deliberately keyboard, not mouse: a mouse can get bumped by someone else
+# walking past, but a key press is a much stronger signal that the laptop's
+# actual owner is back at their desk.
+_last_keyboard_time = time.monotonic()
+_keyboard_lock = threading.Lock()
+
+
+def _on_key_event(_event):
+    global _last_keyboard_time
+    with _keyboard_lock:
+        _last_keyboard_time = time.monotonic()
+
+
+def get_keyboard_idle_seconds() -> float:
+    with _keyboard_lock:
+        return time.monotonic() - _last_keyboard_time
 
 
 def in_checkin_window(now: datetime) -> bool:
@@ -77,21 +98,23 @@ def main():
     log("checkin_daemon started")
     last_checked_in_date = None
 
-    # Startup check — covers a fresh logon after a full shutdown, where no
-    # sleep/wake gap exists to detect.
+    keyboard.on_press(_on_key_event)
+
+    # Startup check — covers a fresh logon after a full shutdown, where
+    # there's no prior idle stretch to have detected a return from.
     last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
 
-    last_monotonic = time.monotonic()
+    was_idle_long = False
     while True:
         time.sleep(POLL_INTERVAL_SECONDS)
-        current_monotonic = time.monotonic()
-        elapsed = current_monotonic - last_monotonic
+        idle_seconds = get_keyboard_idle_seconds()
 
-        if elapsed >= SLEEP_THRESHOLD_SECONDS:
-            log(f"Detected wake from sleep (gap={elapsed:.0f}s)")
+        if idle_seconds >= IDLE_THRESHOLD_SECONDS:
+            was_idle_long = True
+        elif was_idle_long and idle_seconds < POLL_INTERVAL_SECONDS:
+            log(f"Detected first keyboard touch after {IDLE_THRESHOLD_SECONDS}s+ idle")
+            was_idle_long = False
             last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
-
-        last_monotonic = current_monotonic
 
 
 if __name__ == "__main__":

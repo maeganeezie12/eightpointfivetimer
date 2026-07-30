@@ -32,7 +32,9 @@ This creates a shortcut in `shell:startup` that runs `checkin_daemon.py` via `py
 Start-Process pythonw.exe -ArgumentList "checkin_daemon.py"
 ```
 
-It then runs continuously in the background: once at startup (covering a fresh logon after a full shutdown), and afterwards it polls every 60 seconds watching for a large gap in elapsed time, which is how it detects the laptop resumed from sleep. Either way, it only actually posts a checkin if the local time is between 08:00 and 11:00 and it hasn't already checked in that day — outside that window, or after the day's checkin is done, it just logs and does nothing.
+It then runs continuously in the background: once at startup (covering a fresh logon after a full shutdown), and afterwards it watches for the first keyboard key press after being idle 2+ hours — that's the "just got back to your desk" signal, whether the laptop actually went into a real sleep state or just sat locked while staying powered on (many company-managed laptops do the latter, in which case a sleep-detection approach based on elapsed-time gaps never fires at all). It's deliberately keyboard-only, not mouse, since a mouse can get bumped by someone else walking past. Either way, it only actually posts a checkin if the local time is between 08:00 and 11:00 and it hasn't already checked in that day — outside that window, or after the day's checkin is done, it just logs and does nothing.
+
+Note: this uses a low-level keyboard hook (via the `keyboard` package) to detect key presses system-wide. It only ever looks at *timing* of key presses, never which keys were pressed — but some corporate endpoint security software may flag or block low-level keyboard hooks regardless of intent, the same way `schtasks` got blocked. If the daemon doesn't seem to detect a return from idle, check whether the `keyboard` package's hook is being silently blocked.
 
 ## 5. Verify
 
