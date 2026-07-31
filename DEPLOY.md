@@ -9,7 +9,7 @@ python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 
 cp .env.example .env
-# edit .env if needed (timezone, work duration, done message, port)
+# edit .env if needed (timezone, work duration, port)
 
 sudo cp work_timer.service /etc/systemd/system/work_timer.service
 sudo systemctl daemon-reload
@@ -64,6 +64,7 @@ venv/bin/pip install -r requirements.txt
 
 cp .env.example .env
 # edit .env: set PORT=6767 (and TIMEZONE/WORK_DURATION_HOURS if this group needs different defaults)
+# — the systemd unit reads PORT from this file, no need to edit the unit's port directly
 
 sudo cp work_timer.service /etc/systemd/system/work_timer_teamb.service
 sudo sed -i 's|/opt/eightpointfivetimer|/opt/eightpointfivetimer-teamb|g' /etc/systemd/system/work_timer_teamb.service
