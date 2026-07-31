@@ -21,8 +21,10 @@ Copy `client_config.env.example` to `client_config.env` in the same `client\` fo
 From a normal PowerShell prompt (no admin rights needed), from inside `client\`:
 
 ```powershell
-.\install_startup.ps1
+powershell -ExecutionPolicy Bypass -File .\install_startup.ps1
 ```
+
+(Just running `.\install_startup.ps1` directly often fails with `running scripts is disabled on this system` — that's PowerShell's script-execution policy, commonly locked down on company-managed laptops. The `-ExecutionPolicy Bypass -File` form only bypasses it for this one run, no admin rights or permanent setting change needed.)
 
 This creates a shortcut in `shell:startup` that runs `checkin_daemon.py` via `pythonw.exe` (no console window). It'll launch automatically at every logon from now on.
 
