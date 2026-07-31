@@ -91,12 +91,13 @@ def dashboard(request: Request):
     users = []
     for row in rows:
         if row["target_time"] is None:
-            users.append({"name": row["name"], "wake_epoch": None, "target_epoch": None})
+            users.append({"name": row["name"], "color_index": row["id"] % 8, "wake_epoch": None, "target_epoch": None})
         else:
             wake_dt = datetime.fromisoformat(row["wake_time"])
             target_dt = datetime.fromisoformat(row["target_time"])
             users.append({
                 "name": row["name"],
+                "color_index": row["id"] % 8,
                 "wake_epoch": int(wake_dt.timestamp()),
                 "target_epoch": int(target_dt.timestamp()),
             })
