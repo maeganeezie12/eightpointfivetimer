@@ -80,6 +80,10 @@ def in_checkin_window(now: datetime) -> bool:
     return WINDOW_START_HOUR <= now.hour < WINDOW_END_HOUR
 
 
+def is_weekday(now: datetime) -> bool:
+    return now.weekday() < 5  # Monday=0 ... Sunday=6; weekends are 5 and 6
+
+
 def post_checkin(wake_time: datetime) -> bool:
     payload = {"wake_time": wake_time.isoformat()}
     headers = {"Authorization": f"Bearer {PASSWORD}"}
@@ -103,6 +107,9 @@ def post_checkin(wake_time: datetime) -> bool:
 def maybe_checkin(now: datetime, last_checked_in_date) -> object:
     """Posts a checkin if inside the window and not already done today. Returns the (possibly updated) last_checked_in_date."""
     if last_checked_in_date == now.date():
+        return last_checked_in_date
+    if not is_weekday(now):
+        log(f"Skipped — weekend (current day={now.strftime('%A')})")
         return last_checked_in_date
     if not in_checkin_window(now):
         log(f"Skipped — outside {WINDOW_START_HOUR:02d}:00-{WINDOW_END_HOUR:02d}:00 window (current hour={now.hour})")
