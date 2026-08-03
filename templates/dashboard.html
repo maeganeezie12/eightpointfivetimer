@@ -335,13 +335,23 @@
   const savedName = localStorage.getItem("worktimer_name");
   if (savedName) nameInput.value = savedName;
 
+  let timeInputTouchedByUser = false;
+  timeInput.addEventListener("input", () => { timeInputTouchedByUser = true; });
+
+  function syncTimeInputToNow() {
+    if (!editForm.hidden && !timeInputTouchedByUser) {
+      timeInput.value = new Date().toTimeString().slice(0, 5);
+    }
+  }
+
   editToggle.addEventListener("click", () => {
     editForm.hidden = !editForm.hidden;
-    if (!editForm.hidden && !timeInput.value) {
-      const now = new Date();
-      timeInput.value = now.toTimeString().slice(0, 5);
-    }
+    syncTimeInputToNow();
   });
+
+  // Keep the field live while the panel sits open untouched, so an unused
+  // panel left open for a while doesn't submit a stale, minutes-old time.
+  setInterval(syncTimeInputToNow, 1000);
 
   editForm.addEventListener("submit", async (e) => {
     e.preventDefault();

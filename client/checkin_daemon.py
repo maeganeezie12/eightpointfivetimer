@@ -48,7 +48,7 @@ def log(message: str):
 # Windows' own combined keyboard+mouse idle-time API. Whichever signal
 # shows the most recent activity wins, so a blocked/filtered keyboard hook
 # degrades to mouse+keyboard detection instead of failing outright.
-_last_keyboard_time = time.monotonic()
+_last_keyboard_time = None  # None until a real key press has been observed
 _keyboard_lock = threading.Lock()
 
 
@@ -60,6 +60,8 @@ def _on_key_event(_event):
 
 def get_keyboard_idle_seconds() -> float:
     with _keyboard_lock:
+        if _last_keyboard_time is None:
+            return float("inf")
         return time.monotonic() - _last_keyboard_time
 
 
@@ -74,6 +76,22 @@ def get_input_idle_seconds() -> float:
 def get_idle_seconds() -> float:
     """The freshest of the two signals — whichever detected activity most recently."""
     return min(get_keyboard_idle_seconds(), get_input_idle_seconds())
+
+
+# Windows' last-input tick as of process launch. A fresh logon (including an
+# unattended one — an overnight forced-update reboot with saved credentials,
+# or a remote-support session unlocking the machine) starts this daemon with
+# nobody necessarily at the desk yet, so we don't treat "just launched" as
+# proof of presence: has_seen_activity_since_startup() only returns True once
+# a real keypress or mouse move has happened after we started watching.
+_startup_input_tick = win32api.GetLastInputInfo()
+
+
+def has_seen_activity_since_startup() -> bool:
+    with _keyboard_lock:
+        if _last_keyboard_time is not None:
+            return True
+    return win32api.GetLastInputInfo() != _startup_input_tick
 
 
 def in_checkin_window(now: datetime) -> bool:
@@ -134,7 +152,12 @@ def main():
         log(f"Keyboard hook failed to install ({e}) — relying on the mouse+keyboard idle fallback only")
 
     # Startup check — covers a fresh logon after a full shutdown, where
-    # there's no prior idle stretch to have detected a return from.
+    # there's no prior idle stretch to have detected a return from. Wait for
+    # a real keypress/mouse move first rather than checking in the instant
+    # the process launches, since logon can happen with nobody at the desk
+    # yet (an unattended overnight reboot, or a remote-support session).
+    while not has_seen_activity_since_startup():
+        time.sleep(2)
     last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
 
     was_idle_long = False
