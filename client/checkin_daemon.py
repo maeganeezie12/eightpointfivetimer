@@ -23,6 +23,7 @@ MAX_RETRIES = int(os.getenv("MAX_RETRIES", "6"))
 RETRY_DELAY_SECONDS = int(os.getenv("RETRY_DELAY_SECONDS", "15"))
 IDLE_THRESHOLD_SECONDS = int(os.getenv("IDLE_THRESHOLD_SECONDS", "7200"))  # 2 hours
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "60"))
+MOUSE_CONFIRM_WINDOW_SECONDS = int(os.getenv("MOUSE_CONFIRM_WINDOW_SECONDS", "120"))  # 2 minutes
 
 LOG_PATH = BASE_DIR / "checkin_client.log"
 
@@ -71,25 +72,6 @@ def get_input_idle_seconds() -> float:
     last_input_tick = win32api.GetLastInputInfo()
     current_tick = win32api.GetTickCount()
     return (current_tick - last_input_tick) / 1000.0
-
-
-def get_idle_seconds() -> float:
-    """The freshest of the two signals — whichever detected activity most recently."""
-    return min(get_keyboard_idle_seconds(), get_input_idle_seconds())
-
-
-def describe_idle_source() -> str:
-    """For diagnostics: which signal most recently showed activity. A real
-    key press updates both signals (the keyboard hook AND Windows' own
-    last-input tick), so if the keyboard-specific signal isn't fresh but the
-    combined one is, the activity was mouse-only (or the keyboard hook isn't
-    seeing key presses at all — see the note above about corporate security
-    software silently filtering it)."""
-    if get_keyboard_idle_seconds() < POLL_INTERVAL_SECONDS:
-        return "KEYBOARD"
-    elif get_input_idle_seconds() < POLL_INTERVAL_SECONDS:
-        return "MOUSE (or keyboard hook isn't seeing key presses)"
-    return "UNKNOWN"
 
 
 # Windows' last-input tick as of process launch. A fresh logon (including an
@@ -175,16 +157,39 @@ def main():
     last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
 
     was_idle_long = False
+    pending_mouse_since = None  # monotonic time a mouse-only return was first seen, awaiting keyboard confirmation
     while True:
         time.sleep(POLL_INTERVAL_SECONDS)
-        idle_seconds = get_idle_seconds()
+        keyboard_idle = get_keyboard_idle_seconds()
+        input_idle = get_input_idle_seconds()
+
+        if pending_mouse_since is not None:
+            # A mouse-only signal already fired once; we're not restarting the
+            # 7200s idle clock over it (was_idle_long stays True throughout) —
+            # just waiting to see whether a real key press joins in before we
+            # give up and treat it as a false alarm.
+            if keyboard_idle < POLL_INTERVAL_SECONDS:
+                log("Confirmed return from idle via KEYBOARD (after an initial mouse-only signal)")
+                pending_mouse_since = None
+                was_idle_long = False
+                last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
+            elif time.monotonic() - pending_mouse_since >= MOUSE_CONFIRM_WINDOW_SECONDS:
+                log(f"Ignored mouse-only signal — no keyboard input within {MOUSE_CONFIRM_WINDOW_SECONDS}s, treating as a false trigger")
+                pending_mouse_since = None
+            continue
+
+        idle_seconds = min(keyboard_idle, input_idle)
 
         if idle_seconds >= IDLE_THRESHOLD_SECONDS:
             was_idle_long = True
         elif was_idle_long and idle_seconds < POLL_INTERVAL_SECONDS:
-            log(f"Detected return from idle after {IDLE_THRESHOLD_SECONDS}s+ via {describe_idle_source()}")
-            was_idle_long = False
-            last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
+            if keyboard_idle < POLL_INTERVAL_SECONDS:
+                log(f"Detected return from idle after {IDLE_THRESHOLD_SECONDS}s+ via KEYBOARD")
+                was_idle_long = False
+                last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
+            else:
+                log(f"Mouse-only return detected after {IDLE_THRESHOLD_SECONDS}s+ idle — waiting up to {MOUSE_CONFIRM_WINDOW_SECONDS}s for keyboard confirmation")
+                pending_mouse_since = time.monotonic()
 
 
 if __name__ == "__main__":
