@@ -23,7 +23,7 @@ MAX_RETRIES = int(os.getenv("MAX_RETRIES", "6"))
 RETRY_DELAY_SECONDS = int(os.getenv("RETRY_DELAY_SECONDS", "15"))
 IDLE_THRESHOLD_SECONDS = int(os.getenv("IDLE_THRESHOLD_SECONDS", "7200"))  # 2 hours
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "60"))
-MOUSE_CONFIRM_WINDOW_SECONDS = int(os.getenv("MOUSE_CONFIRM_WINDOW_SECONDS", "120"))  # 2 minutes
+MIN_SUSTAINED_ACTIVITY_SECONDS = int(os.getenv("MIN_SUSTAINED_ACTIVITY_SECONDS", "180"))  # 3 minutes
 
 LOG_PATH = BASE_DIR / "checkin_client.log"
 
@@ -38,17 +38,19 @@ def log(message: str):
 
 
 # --- Idle tracking ---
-# Primary signal is keyboard-only, not mouse: a mouse can get bumped by
-# someone else walking past a desk, but a key press is a much stronger
-# signal that the laptop's actual owner is back. It's installed via a
-# low-level keyboard hook (the `keyboard` package), which some corporate
-# endpoint security software may flag or block — the same category of
-# restriction that blocked Task Scheduler earlier. Rather than trying to
-# detect that failure directly (a silently-filtered hook raises no error —
-# it just never fires), a second signal runs alongside it at all times:
-# Windows' own combined keyboard+mouse idle-time API. Whichever signal
-# shows the most recent activity wins, so a blocked/filtered keyboard hook
-# degrades to mouse+keyboard detection instead of failing outright.
+# Two signals, combined by taking whichever is freshest: a keyboard-only hook
+# (the `keyboard` package — some corporate endpoint security software may
+# flag or silently filter this, the same category of restriction that
+# blocked Task Scheduler earlier) and Windows' own combined keyboard+mouse
+# idle-time API as a fallback in case the hook is blocked or filtered.
+#
+# A single instant of activity isn't trusted on its own — see
+# MIN_SUSTAINED_ACTIVITY_SECONDS below — since a momentary blip (a bumped
+# mouse, or an automated overnight/morning update process briefly touching
+# the session — logging in with cached credentials, dismissing a dialog,
+# a management agent interacting with the desktop) looks identical to real
+# activity for a single poll. A real person sitting down keeps typing or
+# moving the mouse for much longer than that.
 _last_keyboard_time = None  # None until a real key press has been observed
 _keyboard_lock = threading.Lock()
 
@@ -157,39 +159,38 @@ def main():
     last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
 
     was_idle_long = False
-    pending_mouse_since = None  # monotonic time a mouse-only return was first seen, awaiting keyboard confirmation
+    activity_streak_start = None  # monotonic time the current unbroken run of activity began
     while True:
         time.sleep(POLL_INTERVAL_SECONDS)
         keyboard_idle = get_keyboard_idle_seconds()
         input_idle = get_input_idle_seconds()
-
-        if pending_mouse_since is not None:
-            # A mouse-only signal already fired once; we're not restarting the
-            # 7200s idle clock over it (was_idle_long stays True throughout) —
-            # just waiting to see whether a real key press joins in before we
-            # give up and treat it as a false alarm.
-            if keyboard_idle < POLL_INTERVAL_SECONDS:
-                log("Confirmed return from idle via KEYBOARD (after an initial mouse-only signal)")
-                pending_mouse_since = None
-                was_idle_long = False
-                last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
-            elif time.monotonic() - pending_mouse_since >= MOUSE_CONFIRM_WINDOW_SECONDS:
-                log(f"Ignored mouse-only signal — no keyboard input within {MOUSE_CONFIRM_WINDOW_SECONDS}s, treating as a false trigger")
-                pending_mouse_since = None
-            continue
-
         idle_seconds = min(keyboard_idle, input_idle)
 
-        if idle_seconds >= IDLE_THRESHOLD_SECONDS:
-            was_idle_long = True
-        elif was_idle_long and idle_seconds < POLL_INTERVAL_SECONDS:
-            if keyboard_idle < POLL_INTERVAL_SECONDS:
-                log(f"Detected return from idle after {IDLE_THRESHOLD_SECONDS}s+ via KEYBOARD")
+        if not was_idle_long:
+            if idle_seconds >= IDLE_THRESHOLD_SECONDS:
+                was_idle_long = True
+            continue
+
+        # Idle for 2+ hours at some point — now watching for a genuine,
+        # sustained return rather than trusting the first sign of activity.
+        if idle_seconds < POLL_INTERVAL_SECONDS:
+            if activity_streak_start is None:
+                activity_streak_start = time.monotonic()
+                log(f"Activity detected after {IDLE_THRESHOLD_SECONDS}s+ idle — confirming it lasts {MIN_SUSTAINED_ACTIVITY_SECONDS}s before treating it as a real return")
+
+            streak_duration = time.monotonic() - activity_streak_start
+            if streak_duration >= MIN_SUSTAINED_ACTIVITY_SECONDS:
+                source = "KEYBOARD" if keyboard_idle < MIN_SUSTAINED_ACTIVITY_SECONDS else "MOUSE"
+                log(f"Confirmed sustained activity for {MIN_SUSTAINED_ACTIVITY_SECONDS}s+ (via {source}) — treating as a real return from idle")
                 was_idle_long = False
+                activity_streak_start = None
                 last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
-            else:
-                log(f"Mouse-only return detected after {IDLE_THRESHOLD_SECONDS}s+ idle — waiting up to {MOUSE_CONFIRM_WINDOW_SECONDS}s for keyboard confirmation")
-                pending_mouse_since = time.monotonic()
+        elif activity_streak_start is not None:
+            # Activity stopped before it was confirmed sustained — a brief
+            # blip, not a real return. was_idle_long stays True so a genuine
+            # return right after doesn't need another full idle period.
+            log("Activity stopped before being confirmed as sustained — ignoring as a likely false trigger (e.g. an automated update)")
+            activity_streak_start = None
 
 
 if __name__ == "__main__":
