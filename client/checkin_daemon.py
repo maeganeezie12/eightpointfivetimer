@@ -78,6 +78,20 @@ def get_idle_seconds() -> float:
     return min(get_keyboard_idle_seconds(), get_input_idle_seconds())
 
 
+def describe_idle_source() -> str:
+    """For diagnostics: which signal most recently showed activity. A real
+    key press updates both signals (the keyboard hook AND Windows' own
+    last-input tick), so if the keyboard-specific signal isn't fresh but the
+    combined one is, the activity was mouse-only (or the keyboard hook isn't
+    seeing key presses at all — see the note above about corporate security
+    software silently filtering it)."""
+    if get_keyboard_idle_seconds() < POLL_INTERVAL_SECONDS:
+        return "KEYBOARD"
+    elif get_input_idle_seconds() < POLL_INTERVAL_SECONDS:
+        return "MOUSE (or keyboard hook isn't seeing key presses)"
+    return "UNKNOWN"
+
+
 # Windows' last-input tick as of process launch. A fresh logon (including an
 # unattended one — an overnight forced-update reboot with saved credentials,
 # or a remote-support session unlocking the machine) starts this daemon with
@@ -168,7 +182,7 @@ def main():
         if idle_seconds >= IDLE_THRESHOLD_SECONDS:
             was_idle_long = True
         elif was_idle_long and idle_seconds < POLL_INTERVAL_SECONDS:
-            log(f"Detected return from idle after {IDLE_THRESHOLD_SECONDS}s+")
+            log(f"Detected return from idle after {IDLE_THRESHOLD_SECONDS}s+ via {describe_idle_source()}")
             was_idle_long = False
             last_checked_in_date = maybe_checkin(datetime.now(), last_checked_in_date)
 
